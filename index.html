@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tango Liquidity Control</title>
+<style>
+  :root{
+    --bg:#1B2A41; --bg-deep:#152033; --card:#253654; --card-line:#33476B;
+    --lime:#B4E85C; --lime-dark:#8FBF3F; --lime-ink:#152033;
+    --text:#FFFFFF; --mute:#B0B0B0;
+    --red:#F08E7A; --red-soft:rgba(240,142,122,.14);
+    --amber:#F0C88E; --amber-soft:rgba(240,200,142,.14);
+    --green-soft:rgba(180,232,92,.14);
+    --mono:'SF Mono','Cascadia Mono','Roboto Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);}
+  .wrap{max-width:1000px;margin:0 auto;padding:24px 16px 90px;}
+  h1{margin:4px 0 0;font-size:26px;letter-spacing:-0.01em;color:var(--text);}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--lime);font-weight:700;}
+  .header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .ribbon{margin-top:18px;background:var(--bg-deep);border:1px solid var(--card-line);border-radius:10px;padding:18px 20px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;}
+  .ribbon .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
+  .ribbon .val{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:4px;color:var(--text);}
+
+  .tabs{display:flex;gap:6px;margin-top:22px;border-bottom:1px solid var(--card-line);flex-wrap:wrap;}
+  .tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;font-size:14px;
+    font-weight:500;color:var(--mute);cursor:pointer;font-family:inherit;}
+  .tab.active{border-bottom-color:var(--lime);color:var(--lime);font-weight:700;}
+  .tab .badge{background:var(--red);color:var(--bg-deep);border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;}
+
+  .card{background:var(--card);border:1px solid var(--card-line);border-radius:10px;padding:20px;margin-top:18px;}
+  .row-card{background:var(--card);border:1px solid var(--card-line);border-radius:10px;padding:12px 16px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+
+  label.fld{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);
+    margin-bottom:5px;display:block;}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--card-line);border-radius:6px;font-size:14px;
+    background:var(--bg-deep);color:var(--text);outline:none;font-family:inherit;}
+  input:focus,select:focus,textarea:focus{border-color:var(--lime);}
+  input[type=checkbox]{width:auto;accent-color:var(--lime);}
+  select option{background:var(--bg-deep);color:var(--text);}
+  .num{font-family:var(--mono);}
+  .cat-hint{font-size:12px;color:var(--mute);margin-top:5px;font-style:italic;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .gridAuto{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;}
+  .full{grid-column:1/-1;}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr;}}
+
+  .btn{background:var(--lime);color:var(--lime-ink);border:none;border-radius:6px;padding:10px 18px;font-size:14px;
+    font-weight:700;cursor:pointer;font-family:inherit;}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--card-line);font-weight:600;}
+  .btn.muted{background:transparent;color:var(--mute);border:1px solid var(--card-line);font-weight:600;}
+  .btn.red{background:var(--red);color:var(--bg-deep);}
+  .btn.amber{background:var(--amber);color:var(--bg-deep);}
+  .btn.sm{padding:7px 12px;font-size:12px;}
+  .btn:hover{opacity:.9;}
+
+  .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;display:inline-block;}
+  .tag.grey{background:rgba(176,176,176,.16);color:var(--mute);}
+  .tag.red{background:var(--red-soft);color:var(--red);}
+  .tag.amber{background:var(--amber-soft);color:var(--amber);}
+  .tag.green{background:var(--green-soft);color:var(--lime);}
+
+  .amt-in{color:var(--lime);} .amt-out{color:var(--red);}
+  .meta{font-size:13px;color:var(--mute);margin-top:2px;}
+  .empty{text-align:center;color:var(--mute);padding:40px;font-size:14px;}
+  .warn-box{margin-top:16px;background:var(--amber-soft);border:1px solid rgba(240,200,142,.4);border-radius:8px;padding:14px;}
+  .dup-alert{margin:18px 0 0;background:var(--red-soft);border:1px solid rgba(240,142,122,.4);border-radius:8px;padding:12px 16px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;}
+
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 14px;}
+  .filters select,.filters input{width:auto;}
+  .filters input.search{flex:1;min-width:180px;}
+
+  table.report{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
+  table.report th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);
+    border-bottom:2px solid var(--card-line);padding:8px 6px;}
+  table.report td{padding:8px 6px;border-bottom:1px solid var(--card-line);color:var(--text);}
+  table.report td.r,table.report th.r{text-align:right;font-family:var(--mono);}
+  table.report tr.total td{font-weight:700;border-top:2px solid var(--lime);border-bottom:none;}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(21,32,51,.72);display:flex;align-items:center;
+    justify-content:center;padding:16px;z-index:50;}
+  .modal{background:var(--card);border:1px solid var(--card-line);border-radius:12px;padding:22px;width:100%;max-width:440px;}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--lime);color:var(--lime-ink);
+    padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;z-index:60;display:none;}
+  .notice{margin-top:12px;font-size:13px;color:var(--amber);background:var(--amber-soft);border-radius:8px;padding:10px 14px;display:none;}
+
+  @media print{
+    body{background:#fff;color:#111;}
+    .no-print{display:none !important;}
+    .wrap{padding:0;max-width:100%;}
+    .card{border:none;padding:0;background:#fff;color:#111;}
+    .eyebrow{color:#3d6b12;}
+    h1,h2,h3{color:#111;}
+    table.report td{color:#111;border-bottom:1px solid #ddd;}
+    table.report th{color:#555;border-bottom:2px solid #999;}
+    table.report tr.total td{border-top:2px solid #111;}
+    .amt-in{color:#3d6b12;} .amt-out{color:#8a2f1a;}
+    .meta,.cat-hint{color:#555;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header no-print">
+    <div>
+      <div class="eyebrow">Tangobrook · Finance</div>
+      <h1>Tango Liquidity Control</h1>
+    </div>
+    <div class="toolbar">
+      <button class="btn ghost" onclick="document.getElementById('importFile').click()">Import (CSV / backup)</button>
+      <button class="btn ghost" onclick="exportCSV()">Export ledger CSV</button>
+      <button class="btn ghost" onclick="exportBackup()">Backup (JSON)</button>
+      <input type="file" id="importFile" accept=".csv,.json" style="display:none" onchange="handleImport(this)">
+    </div>
+  </div>
+
+  <div class="notice" id="storageNotice">
+    ⚠ This browser is blocking local storage, so data will not persist after you close the page.
+    Use <b>Backup (JSON)</b> to save your data and <b>Import</b> to restore it.
+  </div>
+
+  <div class="ribbon no-print" id="ribbon"></div>
+  <div id="dupBanner" class="no-print"></div>
+  <div class="tabs no-print" id="tabs"></div>
+  <div id="view"></div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script>
+// ================= state & persistence =================
+const STORE_KEY = "liquidity-control-data-v1";
+const DEFAULT_CATEGORIES = [
+  {name:"Revenue - TFC", description:"Inflows from the TFC fuel card / wallet product"},
+  {name:"Revenue - GenVault", description:"Inflows from the GenVault product"},
+  {name:"Other income", description:"Interest, refunds, and other non-core inflows"},
+  {name:"Fuel & product cost", description:"Direct cost of fuel and product purchases"},
+  {name:"Salaries & payroll", description:"Staff salaries, allowances and payroll costs"},
+  {name:"Statutory (PAYE/VAT/WHT/Pension)", description:"Statutory remittances and taxes"},
+  {name:"Rent & facilities", description:"Office rent, utilities, and facility costs"},
+  {name:"Software & subscriptions", description:"SaaS tools, licences and subscriptions"},
+  {name:"Professional fees", description:"Audit, legal, consulting and advisory fees"},
+  {name:"Bank charges", description:"Bank fees, transfer charges, COT"},
+  {name:"Loan & interest", description:"Loan repayments and interest payments"},
+  {name:"Logistics & transport", description:"Transport, delivery and logistics costs"},
+  {name:"Marketing", description:"Advertising, promotions and marketing spend"},
+  {name:"Capex / equipment", description:"Equipment, assets and capital purchases"},
+  {name:"Intercompany / related party", description:"Transfers with related entities e.g. Forza Deus"},
+  {name:"Other", description:"Anything that does not fit another category"}
+];
+let state = { txns: [], outstanding: [], categories: [] };
+let storageOK = true;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const d = JSON.parse(raw);
+      state.txns = d.txns||[]; state.outstanding = d.outstanding||[];
+      state.categories = d.categories||[];
+    }
+    localStorage.setItem("__lc_test","1"); localStorage.removeItem("__lc_test");
+  }catch(e){
+    storageOK = false;
+    document.getElementById("storageNotice").style.display = "block";
+  }
+  migrateCategories();
+}
+function migrateCategories(){
+  if(!state.categories || state.categories.length===0){
+    state.categories = DEFAULT_CATEGORIES.map(c=>({id:uid(), ...c}));
+  }
+  // ensure any category name used in existing data exists in the list
+  const names = new Set(state.categories.map(c=>c.name.toLowerCase()));
+  [...state.txns.map(t=>t.category), ...state.outstanding.map(o=>o.category)].forEach(n=>{
+    if(n && !names.has(n.toLowerCase())){
+      state.categories.push({id:uid(), name:n, description:""});
+      names.add(n.toLowerCase());
+    }
+  });
+  saveState();
+}
+function saveState(){
+  if(!storageOK) return;
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+// ================= helpers =================
+const NGN = n => new Intl.NumberFormat("en-NG",{style:"currency",currency:"NGN",minimumFractionDigits:2}).format(Number(n)||0);
+const today = () => new Date().toISOString().slice(0,10);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const monthKey = d => (d||"").slice(0,7);
+const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const fmtDate = d => d ? new Date(d+"T00:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) : "";
+const fmtMonth = m => new Date(m+"-01T00:00:00").toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+const daysBetween = (a,b) => Math.round((new Date(a)-new Date(b))/86400000);
+const catNames = () => state.categories.map(c=>c.name);
+const catByName = n => state.categories.find(c=>c.name===n);
+
+function toastMsg(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(()=>t.style.display="none",2800);
+}
+
+// ================= duplicate detection =================
+const DUP_WINDOW_DAYS = 60;
+function findDuplicates(counterparty, amount, date, excludeId){
+  const cp = (counterparty||"").trim().toLowerCase();
+  if(!cp || !amount) return [];
+  return state.txns.filter(t =>
+    t.id !== excludeId &&
+    t.type === "outflow" &&
+    (t.counterparty||"").trim().toLowerCase() === cp &&
+    Math.abs(t.amount - amount) < 0.005 &&
+    Math.abs(daysBetween(t.date, date)) <= DUP_WINDOW_DAYS
+  );
+}
+// full-ledger scan: groups of outflows with same payee + same amount within the window
+function duplicateGroups(){
+  const outs = state.txns.filter(t=>t.type==="outflow" && !t.dupCleared);
+  const map = {};
+  outs.forEach(t=>{
+    const key = (t.counterparty||"").trim().toLowerCase()+"||"+t.amount.toFixed(2);
+    (map[key] = map[key]||[]).push(t);
+  });
+  const groups = [];
+  Object.values(map).forEach(list=>{
+    if(list.length<2) return;
+    list.sort((a,b)=>a.date<b.date?-1:1);
+    // keep group only if at least two entries fall within the window of each other
+    let close = false;
+    for(let i=1;i<list.length;i++){
+      if(Math.abs(daysBetween(list[i].date,list[i-1].date))<=DUP_WINDOW_DAYS){ close=true; break; }
+    }
+    if(close) groups.push(list);
+  });
+  groups.sort((a,b)=>{
+    const la=a[a.length-1].date, lb=b[b.length-1].date;
+    return la<lb?1:-1;
+  });
+  return groups;
+}
+function clearDupGroup(ids){
+  ids.split("|").forEach(id=>{
+    const t = state.txns.find(x=>x.id===id);
+    if(t) t.dupCleared = true;
+  });
+  saveState(); render();
+  toastMsg("Marked as reviewed — not a duplicate");
+}
+
+// ================= ui state =================
+let tab = "ledger";
+let filters = { month:"all", type:"all", cat:"all", search:"" };
+let reportMonth = "all";
+let form = { type:"outflow", date:today(), counterparty:"", description:"", category:"", amount:"", reference:"", posted:false };
+let oForm = { payee:"", description:"", category:"", amount:"", dueDate:today() };
+let pendingDups = null;
+let catModalTarget = null; // "form" | "oForm" | null (manage tab)
+let editCatId = null;
+
+// ================= render =================
+function render(){
+  renderRibbon();
+  renderDupBanner();
+  renderTabs();
+  const v = document.getElementById("view");
+  if(tab==="ledger") v.innerHTML = ledgerHTML();
+  else if(tab==="outstanding") v.innerHTML = outstandingHTML();
+  else if(tab==="add") v.innerHTML = addHTML();
+  else if(tab==="categories") v.innerHTML = categoriesHTML();
+  else if(tab==="duplicates") v.innerHTML = duplicatesHTML();
+  else if(tab==="report") v.innerHTML = reportHTML();
+}
+
+function renderRibbon(){
+  const tm = monthKey(today());
+  const mT = state.txns.filter(t=>monthKey(t.date)===tm);
+  const mIn = mT.filter(t=>t.type==="inflow").reduce((s,t)=>s+t.amount,0);
+  const mOut = mT.filter(t=>t.type==="outflow").reduce((s,t)=>s+t.amount,0);
+  const net = state.txns.reduce((s,t)=>s+(t.type==="inflow"?t.amount:-t.amount),0);
+  const outT = state.outstanding.reduce((s,o)=>s+o.amount,0);
+  const overdue = state.outstanding.filter(o=>o.dueDate<today()).length;
+  const monthName = new Date().toLocaleDateString("en-GB",{month:"long"});
+  document.getElementById("ribbon").innerHTML = `
+    <div><div class="lbl">Net recorded movement</div>
+      <div class="val" style="color:${net>=0?'var(--lime)':'var(--red)'}">${NGN(net)}</div></div>
+    <div><div class="lbl">Inflows · ${monthName}</div><div class="val" style="color:var(--lime)">${NGN(mIn)}</div></div>
+    <div><div class="lbl">Outflows · ${monthName}</div><div class="val" style="color:var(--red)">${NGN(mOut)}</div></div>
+    <div><div class="lbl">Outstanding commitments</div><div class="val">${NGN(outT)}</div>
+      ${overdue?`<div style="font-size:12px;margin-top:3px;color:var(--amber)">${overdue} overdue</div>`:""}</div>`;
+}
+
+function renderDupBanner(){
+  const groups = duplicateGroups();
+  const el = document.getElementById("dupBanner");
+  if(groups.length===0 || tab==="duplicates"){ el.innerHTML=""; return; }
+  const total = groups.reduce((s,g)=>s+g.length,0);
+  el.innerHTML = `<div class="dup-alert" onclick="setTab('duplicates')">
+    <div><b style="color:var(--red)">⚠ Possible double payments detected</b>
+      <span style="color:var(--mute);font-size:13px"> — ${groups.length} group${groups.length>1?"s":""} (${total} payments) with the same payee and amount. Click to review.</span></div>
+    <button class="btn red sm">Review now</button></div>`;
+}
+
+function renderTabs(){
+  const dupCount = duplicateGroups().length;
+  const defs = [
+    ["ledger",`Ledger (${state.txns.length})`],
+    ["outstanding",`Outstanding (${state.outstanding.length})`],
+    ["add","+ Record transaction"],
+    ["duplicates",`Duplicate monitor${dupCount?` <span class="badge">${dupCount}</span>`:""}`],
+    ["categories","Categories"],
+    ["report","Report"]
+  ];
+  document.getElementById("tabs").innerHTML = defs.map(([k,t])=>
+    `<button class="tab ${tab===k?'active':''}" onclick="setTab('${k}')">${t}</button>`).join("");
+}
+function setTab(t){ tab = t; pendingDups = null; render(); }
+
+// ---------- category select helper ----------
+function catSelectHTML(id, selected, target){
+  return `<select id="${id}" onchange="onCatSelect(this,'${target}')">
+    ${catNames().map(c=>`<option ${c===selected?'selected':''}>${esc(c)}</option>`).join("")}
+    <option value="__new__" style="color:var(--lime)">＋ Add new category…</option>
+  </select>
+  <div class="cat-hint" id="${id}_hint">${esc((catByName(selected)||{}).description||"")}</div>`;
+}
+function onCatSelect(sel, target){
+  if(sel.value==="__new__"){
+    openCatModal(target);
+    // revert visible selection until saved
+    sel.value = target==="form" ? (form.category||catNames()[0]) : (oForm.category||catNames()[0]);
+    return;
+  }
+  if(target==="form"){ captureForm(); form.category = sel.value; }
+  else { captureOForm(); oForm.category = sel.value; }
+  const hint = document.getElementById(sel.id+"_hint");
+  if(hint) hint.textContent = (catByName(sel.value)||{}).description||"";
+}
+
+// ---------- add tab ----------
+function addHTML(){
+  if(!form.category) form.category = catNames()[0];
+  const isIn = form.type==="inflow";
+  return `<div class="card" style="max-width:660px">
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+      <button class="btn ${form.type==='outflow'?'red':'ghost'}" onclick="setFormType('outflow')">Outflow (payment out)</button>
+      <button class="btn ${form.type==='inflow'?'':'ghost'}" onclick="setFormType('inflow')">Inflow (money in)</button>
+    </div>
+    <div class="grid2">
+      <div><label class="fld">Date</label><input type="date" id="f_date" value="${form.date}"></div>
+      <div><label class="fld">Amount (₦)</label><input type="number" step="0.01" min="0" class="num" id="f_amount" placeholder="0.00" value="${esc(form.amount)}"></div>
+      <div><label class="fld">${isIn?"Received from":"Paid to"}</label><input id="f_cp" placeholder="Counterparty name" value="${esc(form.counterparty)}"></div>
+      <div><label class="fld">Category</label>${catSelectHTML("f_cat", form.category, "form")}</div>
+      <div class="full"><label class="fld">Description</label><input id="f_desc" placeholder="What was this for?" value="${esc(form.description)}"></div>
+      <div><label class="fld">Reference (invoice / teller no.)</label><input id="f_ref" value="${esc(form.reference)}"></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:6px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute);cursor:pointer">
+          <input type="checkbox" id="f_posted" ${form.posted?'checked':''}> Already posted to Zoho</label>
+      </div>
+    </div>
+    ${pendingDups ? dupWarningHTML() : `<button class="btn" style="margin-top:18px" onclick="submitTxn(false)">Record ${form.type}</button>`}
+  </div>`;
+}
+function dupWarningHTML(){
+  return `<div class="warn-box">
+    <div style="font-weight:700;color:var(--amber);font-size:14px">⚠ Possible duplicate payment</div>
+    <div style="font-size:13px;margin-top:4px">You already recorded ${pendingDups.length} payment${pendingDups.length>1?"s":""} to this counterparty for the same amount within ${DUP_WINDOW_DAYS} days:</div>
+    ${pendingDups.map(d=>`<div class="num" style="font-size:13px;margin-top:6px">${fmtDate(d.date)} — ${NGN(d.amount)} ${d.reference?`· ref ${esc(d.reference)}`:""}</div>`).join("")}
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn amber" onclick="submitTxn(true)">Record anyway</button>
+      <button class="btn ghost" onclick="pendingDups=null;render()">Cancel</button>
+    </div></div>`;
+}
+function setFormType(t){ captureForm(); form.type = t; render(); }
+function captureForm(){
+  const g = id => document.getElementById(id);
+  if(!g("f_date")) return;
+  form.date = g("f_date").value || today();
+  form.amount = g("f_amount").value;
+  form.counterparty = g("f_cp").value;
+  form.category = g("f_cat").value==="__new__" ? form.category : g("f_cat").value;
+  form.description = g("f_desc").value;
+  form.reference = g("f_ref").value;
+  form.posted = g("f_posted").checked;
+}
+function submitTxn(force){
+  captureForm();
+  const amt = parseFloat(form.amount);
+  if(!form.counterparty.trim() || !amt || amt<=0){ toastMsg("Enter a counterparty and a valid amount"); return; }
+  if(form.type==="outflow" && !force){
+    const dups = findDuplicates(form.counterparty, amt, form.date);
+    if(dups.length){ pendingDups = dups; render(); return; }
+  }
+  state.txns.unshift({ id:uid(), type:form.type, date:form.date, counterparty:form.counterparty.trim(),
+    description:form.description.trim(), category:form.category, amount:amt,
+    reference:form.reference.trim(), postedToZoho:form.posted, source:"direct" });
+  saveState();
+  toastMsg(form.type==="inflow"?"Inflow recorded":"Payment recorded");
+  form.counterparty=""; form.description=""; form.amount=""; form.reference=""; pendingDups=null;
+  render();
+}
+
+// ---------- categories tab ----------
+function categoriesHTML(){
+  const usage = {};
+  [...state.txns, ...state.outstanding].forEach(x=>{
+    if(x.category) usage[x.category]=(usage[x.category]||0)+1;
+  });
+  return `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-weight:700;font-size:16px">Account categories</div>
+        <div class="meta">Add your own categories with a description of what belongs in each. Descriptions show as a hint when recording transactions.</div>
+      </div>
+      <button class="btn" onclick="openCatModal(null)">＋ Add category</button>
+    </div>
+  </div>
+  ${state.categories.map(c=>`
+  <div class="row-card">
+    <div style="min-width:220px;flex:1">
+      <div style="font-weight:700;font-size:15px">${esc(c.name)}</div>
+      <div class="meta">${esc(c.description||"No description yet")}</div>
+    </div>
+    <span class="tag grey">${usage[c.name]||0} entr${(usage[c.name]||0)===1?"y":"ies"}</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost sm" onclick="openCatModal(null,'${c.id}')">Edit</button>
+      <button class="btn muted sm" onclick="deleteCategory('${c.id}')">✕</button>
+    </div>
+  </div>`).join("")}`;
+}
+function openCatModal(target, catId){
+  catModalTarget = target||null;
+  editCatId = catId||null;
+  const c = catId ? state.categories.find(x=>x.id===catId) : {name:"",description:""};
+  document.getElementById("modalRoot").innerHTML = `
+  <div class="modal-bg" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div style="font-weight:700;font-size:17px">${catId?"Edit category":"Add a new category"}</div>
+      <div style="margin-top:14px"><label class="fld">Category name</label>
+        <input id="c_name" placeholder="e.g. Diesel purchases" value="${esc(c.name)}"></div>
+      <div style="margin-top:12px"><label class="fld">Description (what belongs here?)</label>
+        <textarea id="c_desc" rows="3" placeholder="e.g. All diesel purchases for generator clients, excluding logistics">${esc(c.description||"")}</textarea></div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn" onclick="saveCategory()">${catId?"Save changes":"Add category"}</button>
+        <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  setTimeout(()=>document.getElementById("c_name").focus(),50);
+}
+function saveCategory(){
+  const name = document.getElementById("c_name").value.trim();
+  const desc = document.getElementById("c_desc").value.trim();
+  if(!name){ toastMsg("Give the category a name"); return; }
+  const clash = state.categories.find(c=>c.name.toLowerCase()===name.toLowerCase() && c.id!==editCatId);
+  if(clash){ toastMsg("A category with this name already exists"); return; }
+  if(editCatId){
+    const c = state.categories.find(x=>x.id===editCatId);
+    const oldName = c.name;
+    c.name = name; c.description = desc;
+    if(oldName!==name){
+      state.txns.forEach(t=>{ if(t.category===oldName) t.category=name; });
+      state.outstanding.forEach(o=>{ if(o.category===oldName) o.category=name; });
+      if(form.category===oldName) form.category=name;
+      if(oForm.category===oldName) oForm.category=name;
+    }
+    toastMsg("Category updated");
+  }else{
+    state.categories.push({id:uid(), name, description:desc});
+    if(catModalTarget==="form") form.category = name;
+    if(catModalTarget==="oForm") oForm.category = name;
+    toastMsg(`Category "${name}" added`);
+  }
+  saveState(); closeModal(); render();
+}
+function deleteCategory(id){
+  const c = state.categories.find(x=>x.id===id); if(!c) return;
+  const used = [...state.txns,...state.outstanding].filter(x=>x.category===c.name).length;
+  if(used>0){
+    if(!confirm(`"${c.name}" is used by ${used} entr${used===1?"y":"ies"}. They will be moved to "Other". Continue?`)) return;
+    let other = state.categories.find(x=>x.name==="Other");
+    if(!other){ other={id:uid(),name:"Other",description:"Anything that does not fit another category"}; state.categories.push(other); }
+    state.txns.forEach(t=>{ if(t.category===c.name) t.category="Other"; });
+    state.outstanding.forEach(o=>{ if(o.category===c.name) o.category="Other"; });
+  }else{
+    if(!confirm(`Delete category "${c.name}"?`)) return;
+  }
+  state.categories = state.categories.filter(x=>x.id!==id);
+  saveState(); render();
+}
+
+// ---------- duplicates tab ----------
+function duplicatesHTML(){
+  const groups = duplicateGroups();
+  return `
+  <div class="card">
+    <div style="font-weight:700;font-size:16px">Duplicate payment monitor</div>
+    <div class="meta">Continuously scans all outflows for payments with the <b style="color:var(--text)">same payee and same amount within ${DUP_WINDOW_DAYS} days</b> of each other.
+    Review each group: delete the wrong entry, or mark the group as reviewed if both payments are genuine (e.g. monthly rent).</div>
+  </div>
+  ${groups.length===0 ? `<div class="empty">✓ No possible duplicates found. Every outflow is unique within the ${DUP_WINDOW_DAYS}-day window.</div>` :
+    groups.map(g=>{
+      const ids = g.map(t=>t.id).join("|");
+      return `<div class="card" style="border-color:rgba(240,142,122,.5)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-weight:700">${esc(g[0].counterparty)} — <span class="num amt-out">${NGN(g[0].amount)}</span> × ${g.length}</div>
+            <div class="meta">Total exposure if duplicated: <span class="num" style="color:var(--red)">${NGN(g[0].amount*(g.length-1))}</span></div>
+          </div>
+          <button class="btn ghost sm" onclick="clearDupGroup('${ids}')">Both genuine — mark reviewed</button>
+        </div>
+        ${g.map(t=>`
+        <div class="row-card" style="margin-top:10px;margin-bottom:0">
+          <div style="flex:1;min-width:200px">
+            <div class="num" style="font-size:14px">${fmtDate(t.date)}</div>
+            <div class="meta">${esc(t.category)}${t.description?` · ${esc(t.description)}`:""}${t.reference?` · ref ${esc(t.reference)}`:""}
+              ${t.source==="outstanding"?" · settled payable":""}${t.postedToZoho?" · posted to Zoho":" · not in Zoho"}</div>
+          </div>
+          <button class="btn red sm" onclick="deleteTxn('${t.id}')">Delete this entry</button>
+        </div>`).join("")}
+      </div>`;
+    }).join("")}`;
+}
+
+// ---------- outstanding tab ----------
+function outstandingHTML(){
+  if(!oForm.category) oForm.category = catNames()[0];
+  const list = state.outstanding.slice().sort((a,b)=>a.dueDate>b.dueDate?1:-1);
+  return `
+  <div class="card">
+    <div style="font-weight:700;margin-bottom:12px">Add an outstanding commitment</div>
+    <div class="gridAuto">
+      <div><label class="fld">Payee</label><input id="o_payee" value="${esc(oForm.payee)}"></div>
+      <div><label class="fld">Amount (₦)</label><input type="number" step="0.01" min="0" class="num" id="o_amount" value="${esc(oForm.amount)}"></div>
+      <div><label class="fld">Due date</label><input type="date" id="o_due" value="${oForm.dueDate}"></div>
+      <div><label class="fld">Category</label>${catSelectHTML("o_cat", oForm.category, "oForm")}</div>
+      <div class="full"><label class="fld">Description</label><input id="o_desc" value="${esc(oForm.description)}"></div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="submitOutstanding()">Add to outstanding</button>
+  </div>
+  ${list.length===0 ? `<div class="empty">Nothing outstanding. Commitments you add here can be marked as paid and will move into your ledger.</div>` :
+    list.map(o=>{
+      const late = o.dueDate < today();
+      const soon = !late && daysBetween(o.dueDate,today())<=7;
+      return `<div class="row-card" style="${late?'border-color:rgba(240,142,122,.5)':''}">
+        <div style="min-width:200px;flex:1">
+          <div style="font-weight:700;font-size:15px">${esc(o.payee)}</div>
+          <div class="meta">${esc(o.description||o.category)} · due ${fmtDate(o.dueDate)}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+            ${late?`<span class="tag red">Overdue ${daysBetween(today(),o.dueDate)}d</span>`:""}
+            ${soon?`<span class="tag amber">Due soon</span>`:""}
+            <span class="tag grey">${esc(o.category)}</span>
+          </div>
+        </div>
+        <div class="num" style="font-weight:600;font-size:17px">${NGN(o.amount)}</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="openPayModal('${o.id}')">Mark paid</button>
+          <button class="btn muted" title="Remove without paying" onclick="deleteOutstanding('${o.id}')">✕</button>
+        </div>
+      </div>`;
+    }).join("")}`;
+}
+function captureOForm(){
+  const g = id => document.getElementById(id);
+  if(!g("o_payee")) return;
+  oForm.payee = g("o_payee").value;
+  oForm.amount = g("o_amount").value;
+  oForm.dueDate = g("o_due").value || today();
+  oForm.category = g("o_cat").value==="__new__" ? oForm.category : g("o_cat").value;
+  oForm.description = g("o_desc").value;
+}
+function submitOutstanding(){
+  captureOForm();
+  const amt = parseFloat(oForm.amount);
+  const payee = oForm.payee.trim();
+  if(!payee || !amt || amt<=0){ toastMsg("Enter a payee and a valid amount"); return; }
+  state.outstanding.push({ id:uid(), payee, description:oForm.description.trim(),
+    category:oForm.category, amount:amt, dueDate:oForm.dueDate, createdAt:today() });
+  saveState();
+  oForm.payee=""; oForm.description=""; oForm.amount="";
+  toastMsg("Added to outstanding"); render();
+}
+function deleteOutstanding(id){
+  state.outstanding = state.outstanding.filter(o=>o.id!==id);
+  saveState(); render();
+}
+function openPayModal(id){
+  const o = state.outstanding.find(x=>x.id===id); if(!o) return;
+  const dupNote = findDuplicates(o.payee,o.amount,today()).length
+    ? `<div style="margin-top:10px;background:var(--amber-soft);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--amber);font-weight:600">⚠ A payment to this payee for the same amount already exists in your ledger. Check before confirming — this may be a double payment.</div>` : "";
+  document.getElementById("modalRoot").innerHTML = `
+  <div class="modal-bg" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div style="font-weight:700;font-size:17px">Mark as paid</div>
+      <div style="font-size:14px;color:var(--mute);margin-top:4px">${esc(o.payee)} · <span class="num" style="color:var(--text)">${NGN(o.amount)}</span></div>
+      ${dupNote}
+      <div style="margin-top:14px"><label class="fld">Payment date</label><input type="date" id="p_date" value="${today()}"></div>
+      <div style="margin-top:12px"><label class="fld">Reference (optional)</label><input id="p_ref"></div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn" onclick="confirmPay('${o.id}')">Confirm payment</button>
+        <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+function closeModal(e){ if(e && e.target!==e.currentTarget) return; document.getElementById("modalRoot").innerHTML=""; }
+function confirmPay(id){
+  const o = state.outstanding.find(x=>x.id===id); if(!o) return;
+  const date = document.getElementById("p_date").value || today();
+  const ref = document.getElementById("p_ref").value.trim();
+  state.txns.unshift({ id:uid(), type:"outflow", date, counterparty:o.payee,
+    description:o.description||"Settlement of outstanding item", category:o.category, amount:o.amount,
+    reference:ref, postedToZoho:false, source:"outstanding", raisedOn:o.createdAt, dueDate:o.dueDate });
+  state.outstanding = state.outstanding.filter(x=>x.id!==id);
+  saveState(); closeModal(); toastMsg("Marked as paid — moved to ledger"); render();
+}
+
+// ---------- ledger tab ----------
+function monthsList(){
+  return [...new Set(state.txns.map(t=>monthKey(t.date)).filter(Boolean))].sort().reverse();
+}
+function filteredTxns(){
+  const f = filters;
+  return state.txns
+    .filter(t=>f.month==="all"||monthKey(t.date)===f.month)
+    .filter(t=>f.type==="all"||t.type===f.type)
+    .filter(t=>f.cat==="all"||t.category===f.cat)
+    .filter(t=>{
+      if(!f.search.trim()) return true;
+      const q = f.search.toLowerCase();
+      return (t.counterparty||"").toLowerCase().includes(q)||(t.description||"").toLowerCase().includes(q)||(t.reference||"").toLowerCase().includes(q);
+    })
+    .sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+}
+function ledgerHTML(){
+  const f = filters;
+  return `
+  <div class="filters">
+    <select onchange="filters.month=this.value;render()">
+      <option value="all" ${f.month==='all'?'selected':''}>All months</option>
+      ${monthsList().map(m=>`<option value="${m}" ${f.month===m?'selected':''}>${fmtMonth(m)}</option>`).join("")}
+    </select>
+    <select onchange="filters.type=this.value;render()">
+      <option value="all" ${f.type==='all'?'selected':''}>In &amp; out</option>
+      <option value="inflow" ${f.type==='inflow'?'selected':''}>Inflows</option>
+      <option value="outflow" ${f.type==='outflow'?'selected':''}>Outflows</option>
+    </select>
+    <select onchange="filters.cat=this.value;render()">
+      <option value="all" ${f.cat==='all'?'selected':''}>All categories</option>
+      ${catNames().map(c=>`<option ${f.cat===c?'selected':''}>${esc(c)}</option>`).join("")}
+    </select>
+    <input class="search" placeholder="Search payee, description or reference…" value="${esc(f.search)}"
+      oninput="filters.search=this.value;renderLedgerOnly()">
+  </div>
+  <div id="ledgerList">${ledgerListHTML()}</div>`;
+}
+function ledgerListHTML(){
+  const list = filteredTxns();
+  if(list.length===0) return `<div class="empty">${state.txns.length===0?'No transactions yet. Use “Record transaction” to log your first inflow or payment.':'No transactions match these filters.'}</div>`;
+  const inSum = list.filter(t=>t.type==="inflow").reduce((s,t)=>s+t.amount,0);
+  const outSum = list.filter(t=>t.type==="outflow").reduce((s,t)=>s+t.amount,0);
+  return `
+  <div style="font-size:13px;color:var(--mute);margin-bottom:8px">
+    ${list.length} transaction${list.length!==1?"s":""} ·
+    In <span class="num amt-in">${NGN(inSum)}</span> ·
+    Out <span class="num amt-out">${NGN(outSum)}</span>
+  </div>
+  ${list.map(t=>`
+  <div class="row-card">
+    <div style="min-width:220px;flex:1">
+      <div style="font-weight:600;font-size:15px">${esc(t.counterparty)}
+        ${t.source==="outstanding"?'<span style="font-size:11px;color:var(--mute);font-weight:500"> · settled payable</span>':""}</div>
+      <div class="meta">${fmtDate(t.date)} · ${esc(t.category)}${t.description?` · ${esc(t.description)}`:""}${t.reference?` · ref ${esc(t.reference)}`:""}</div>
+    </div>
+    <div class="num ${t.type==='inflow'?'amt-in':'amt-out'}" style="font-weight:600;font-size:16px">
+      ${t.type==="inflow"?"+":"−"}${NGN(t.amount)}</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn sm ${t.postedToZoho?'':'muted'}" style="${t.postedToZoho?'background:var(--green-soft);color:var(--lime);border:1px solid rgba(180,232,92,.4);':''}"
+        onclick="togglePosted('${t.id}')">${t.postedToZoho?"Posted to Zoho ✓":"Not yet in Zoho"}</button>
+      <button class="btn sm muted" title="Delete entry" onclick="deleteTxn('${t.id}')">✕</button>
+    </div>
+  </div>`).join("")}`;
+}
+function renderLedgerOnly(){
+  const el = document.getElementById("ledgerList");
+  if(el) el.innerHTML = ledgerListHTML();
+}
+function togglePosted(id){
+  const t = state.txns.find(x=>x.id===id); if(!t) return;
+  t.postedToZoho = !t.postedToZoho; saveState(); render();
+}
+function deleteTxn(id){
+  if(!confirm("Delete this entry? This cannot be undone.")) return;
+  state.txns = state.txns.filter(t=>t.id!==id); saveState(); render();
+}
+
+// ---------- report tab ----------
+function reportHTML(){
+  const scope = state.txns.filter(t=>reportMonth==="all"||monthKey(t.date)===reportMonth);
+  const inflows = scope.filter(t=>t.type==="inflow");
+  const outflows = scope.filter(t=>t.type==="outflow");
+  const inTot = inflows.reduce((s,t)=>s+t.amount,0);
+  const outTot = outflows.reduce((s,t)=>s+t.amount,0);
+  const byCat = (list) => {
+    const m = {};
+    list.forEach(t=>{ m[t.category]=(m[t.category]||0)+t.amount; });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  };
+  const catRows = (rows,total,cls)=> rows.map(([c,v])=>`
+    <tr><td>${esc(c)}</td><td class="r ${cls}">${NGN(v)}</td>
+    <td class="r" style="color:var(--mute)">${total?((v/total*100).toFixed(1)+"%"):""}</td></tr>`).join("");
+  const unposted = scope.filter(t=>!t.postedToZoho);
+  const unpostedTot = unposted.reduce((s,t)=>s+(t.type==="inflow"?t.amount:-t.amount),0);
+  const outstT = state.outstanding.reduce((s,o)=>s+o.amount,0);
+  const overdueList = state.outstanding.filter(o=>o.dueDate<today());
+  const dupGroups = duplicateGroups();
+  const scopeLabel = reportMonth==="all" ? "All recorded activity" : fmtMonth(reportMonth);
+
+  return `
+  <div class="filters no-print">
+    <select onchange="reportMonth=this.value;render()">
+      <option value="all" ${reportMonth==='all'?'selected':''}>All months</option>
+      ${monthsList().map(m=>`<option value="${m}" ${reportMonth===m?'selected':''}>${fmtMonth(m)}</option>`).join("")}
+    </select>
+    <button class="btn ghost" onclick="window.print()">Print / save as PDF</button>
+    <button class="btn ghost" onclick="exportReportCSV()">Export this report (CSV)</button>
+  </div>
+
+  <div class="card" id="printArea">
+    <div class="eyebrow">Liquidity report</div>
+    <h2 style="margin:4px 0 2px">${scopeLabel}</h2>
+    <div class="meta">Prepared ${fmtDate(today())} · Tangobrook Technologies Limited</div>
+
+    <table class="report">
+      <tr><th>Summary</th><th class="r">Amount</th><th class="r"></th></tr>
+      <tr><td>Total inflows</td><td class="r amt-in">${NGN(inTot)}</td><td></td></tr>
+      <tr><td>Total outflows</td><td class="r amt-out">(${NGN(outTot)})</td><td></td></tr>
+      <tr class="total"><td>Net movement</td><td class="r" style="color:${inTot-outTot>=0?'var(--lime)':'var(--red)'}">${NGN(inTot-outTot)}</td><td></td></tr>
+    </table>
+
+    ${inflows.length?`<h3 style="margin:26px 0 4px;font-size:15px">Inflows by category</h3>
+    <table class="report"><tr><th>Category</th><th class="r">Amount</th><th class="r">Share</th></tr>
+      ${catRows(byCat(inflows),inTot,"amt-in")}</table>`:""}
+
+    ${outflows.length?`<h3 style="margin:26px 0 4px;font-size:15px">Outflows by category</h3>
+    <table class="report"><tr><th>Category</th><th class="r">Amount</th><th class="r">Share</th></tr>
+      ${catRows(byCat(outflows),outTot,"amt-out")}</table>`:""}
+
+    <h3 style="margin:26px 0 4px;font-size:15px">Controls check</h3>
+    <table class="report">
+      <tr><td>Possible duplicate payment groups (unreviewed)</td>
+        <td class="r">${dupGroups.length} group${dupGroups.length===1?"":"s"}</td>
+        <td class="r">${NGN(dupGroups.reduce((s,g)=>s+g[0].amount*(g.length-1),0))}</td></tr>
+      <tr><td>Entries not yet posted to Zoho (${scopeLabel.toLowerCase()})</td>
+        <td class="r">${unposted.length} entr${unposted.length===1?"y":"ies"}</td>
+        <td class="r">${NGN(unpostedTot)}</td></tr>
+      <tr><td>Outstanding commitments (as at today)</td>
+        <td class="r">${state.outstanding.length} item${state.outstanding.length===1?"":"s"}</td>
+        <td class="r">${NGN(outstT)}</td></tr>
+      <tr><td>Overdue commitments</td>
+        <td class="r">${overdueList.length} item${overdueList.length===1?"":"s"}</td>
+        <td class="r">${NGN(overdueList.reduce((s,o)=>s+o.amount,0))}</td></tr>
+    </table>
+
+    ${overdueList.length?`<h3 style="margin:26px 0 4px;font-size:15px">Overdue detail</h3>
+    <table class="report"><tr><th>Payee</th><th>Due</th><th class="r">Amount</th></tr>
+      ${overdueList.map(o=>`<tr><td>${esc(o.payee)}</td><td>${fmtDate(o.dueDate)}</td><td class="r">${NGN(o.amount)}</td></tr>`).join("")}</table>`:""}
+  </div>`;
+}
+
+// ================= export =================
+function csvEscape(c){ return `"${String(c??"").replace(/"/g,'""')}"`; }
+function downloadFile(content, name, type){
+  const blob = new Blob([content],{type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+function exportCSV(){
+  const rows = [["Date","Type","Counterparty","Description","Category","Amount","Reference","PostedToZoho","Source"],
+    ...state.txns.slice().sort((a,b)=>a.date>b.date?1:-1).map(t=>[
+      t.date,t.type,t.counterparty,t.description||"",t.category,t.amount.toFixed(2),
+      t.reference||"",t.postedToZoho?"Yes":"No",t.source==="outstanding"?"Settled payable":t.source==="import"?"Imported":"Direct entry"])];
+  downloadFile(rows.map(r=>r.map(csvEscape).join(",")).join("\n"),`tango-liquidity-ledger-${today()}.csv`,"text/csv");
+  toastMsg("Ledger exported");
+}
+function exportReportCSV(){
+  const scope = state.txns.filter(t=>reportMonth==="all"||monthKey(t.date)===reportMonth);
+  const inflows = scope.filter(t=>t.type==="inflow"), outflows = scope.filter(t=>t.type==="outflow");
+  const inTot = inflows.reduce((s,t)=>s+t.amount,0), outTot = outflows.reduce((s,t)=>s+t.amount,0);
+  const byCat = list => { const m={}; list.forEach(t=>m[t.category]=(m[t.category]||0)+t.amount);
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
+  const dupGroups = duplicateGroups();
+  const rows = [
+    ["Tango liquidity report", reportMonth==="all"?"All months":fmtMonth(reportMonth)],
+    ["Prepared", today()], [],
+    ["SUMMARY"], ["Total inflows", inTot.toFixed(2)], ["Total outflows", outTot.toFixed(2)],
+    ["Net movement",(inTot-outTot).toFixed(2)], [],
+    ["INFLOWS BY CATEGORY"], ...byCat(inflows).map(([c,v])=>[c,v.toFixed(2)]), [],
+    ["OUTFLOWS BY CATEGORY"], ...byCat(outflows).map(([c,v])=>[c,v.toFixed(2)]), [],
+    ["CONTROLS CHECK"],
+    ["Possible duplicate groups (unreviewed)", dupGroups.length],
+    ["Entries not yet posted to Zoho", scope.filter(t=>!t.postedToZoho).length], [],
+    ["OUTSTANDING COMMITMENTS"],
+    ["Payee","Due date","Category","Amount","Description"],
+    ...state.outstanding.map(o=>[o.payee,o.dueDate,o.category,o.amount.toFixed(2),o.description||""])
+  ];
+  downloadFile(rows.map(r=>r.map(csvEscape).join(",")).join("\n"),
+    `tango-liquidity-report-${reportMonth==="all"?"all":reportMonth}-${today()}.csv`,"text/csv");
+  toastMsg("Report exported");
+}
+function exportBackup(){
+  downloadFile(JSON.stringify({ app:"liquidity-control", version:2, exported:today(), ...state },null,2),
+    `tango-liquidity-backup-${today()}.json`,"application/json");
+  toastMsg("Backup downloaded — keep it safe");
+}
+
+// ================= import =================
+function handleImport(inputEl){
+  const file = inputEl.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = reader.result;
+    try{
+      if(file.name.toLowerCase().endsWith(".json")) importJSON(text);
+      else importCSV(text);
+    }catch(e){
+      toastMsg("Import failed — check the file format");
+    }
+    inputEl.value = "";
+  };
+  reader.readAsText(file);
+}
+function importJSON(text){
+  const d = JSON.parse(text);
+  if(!Array.isArray(d.txns)) { toastMsg("Not a valid backup file"); return; }
+  const mode = confirm("OK = MERGE this backup into your current data.\nCancel = REPLACE everything with the backup.");
+  if(mode){
+    const ids = new Set(state.txns.map(t=>t.id));
+    const oids = new Set(state.outstanding.map(o=>o.id));
+    let added = 0;
+    (d.txns||[]).forEach(t=>{ if(!ids.has(t.id)){ state.txns.push(t); added++; } });
+    (d.outstanding||[]).forEach(o=>{ if(!oids.has(o.id)) state.outstanding.push(o); });
+    const cnames = new Set(state.categories.map(c=>c.name.toLowerCase()));
+    (d.categories||[]).forEach(c=>{ if(!cnames.has(c.name.toLowerCase())){ state.categories.push(c); cnames.add(c.name.toLowerCase()); } });
+    state.txns.sort((a,b)=>a.date<b.date?1:-1);
+    toastMsg(`Merged — ${added} new transaction${added!==1?"s":""} added`);
+  }else{
+    state.txns = d.txns||[]; state.outstanding = d.outstanding||[];
+    state.categories = d.categories||[];
+    toastMsg("Data replaced from backup");
+  }
+  migrateCategories();
+  saveState(); render();
+}
+function parseCSV(text){
+  const rows = []; let row = [], cur = "", inQ = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(inQ){
+      if(ch==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else inQ=false; }
+      else cur+=ch;
+    }else{
+      if(ch==='"') inQ=true;
+      else if(ch===','){ row.push(cur); cur=""; }
+      else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&text[i+1]==='\n') i++; row.push(cur); cur="";
+        if(row.some(c=>c!=="")) rows.push(row); row=[]; }
+      else cur+=ch;
+    }
+  }
+  row.push(cur); if(row.some(c=>c!=="")) rows.push(row);
+  return rows;
+}
+function importCSV(text){
+  const rows = parseCSV(text);
+  if(rows.length<2){ toastMsg("CSV appears empty"); return; }
+  const header = rows[0].map(h=>h.trim().toLowerCase());
+  const col = (...names)=>{ for(const n of names){ const i=header.findIndex(h=>h.includes(n)); if(i>=0) return i; } return -1; };
+  const iDate=col("date"), iType=col("type"), iCp=col("counterparty","payee","paid to","received from","name"),
+        iDesc=col("description","narration","details","memo"), iCat=col("category"),
+        iAmt=col("amount"), iRef=col("reference","ref"), iPosted=col("posted"), iDebit=col("debit"), iCredit=col("credit");
+  if(iDate<0 || (iAmt<0 && iDebit<0 && iCredit<0)){
+    toastMsg("Need at least Date and Amount (or Debit/Credit) columns"); return;
+  }
+  let added=0, skipped=0;
+  rows.slice(1).forEach(r=>{
+    const rawDate = (r[iDate]||"").trim();
+    let date = normalizeDate(rawDate);
+    if(!date){ skipped++; return; }
+    let amount=0, type="outflow";
+    if(iAmt>=0 && r[iAmt] && parseFloat(String(r[iAmt]).replace(/[₦,\s]/g,""))){
+      amount = Math.abs(parseFloat(String(r[iAmt]).replace(/[₦,\s]/g,"")));
+      const tRaw = iType>=0 ? (r[iType]||"").toLowerCase() : "";
+      type = tRaw.includes("in")||tRaw.includes("credit")||tRaw.includes("receipt") ? "inflow" : "outflow";
+    }else if(iDebit>=0||iCredit>=0){
+      const deb = iDebit>=0 ? parseFloat(String(r[iDebit]||"").replace(/[₦,\s]/g,""))||0 : 0;
+      const cre = iCredit>=0 ? parseFloat(String(r[iCredit]||"").replace(/[₦,\s]/g,""))||0 : 0;
+      if(deb>0){ amount=deb; type="outflow"; } else if(cre>0){ amount=cre; type="inflow"; }
+    }
+    if(!amount){ skipped++; return; }
+    const catRaw = iCat>=0 ? (r[iCat]||"").trim() : "";
+    state.txns.push({
+      id:uid(), type, date,
+      counterparty: iCp>=0 ? (r[iCp]||"").trim()||"(imported)" : "(imported)",
+      description: iDesc>=0 ? (r[iDesc]||"").trim() : "",
+      category: catNames().find(c=>c.toLowerCase()===catRaw.toLowerCase()) || (catRaw||"Other"),
+      amount, reference: iRef>=0 ? (r[iRef]||"").trim() : "",
+      postedToZoho: iPosted>=0 ? /yes|true|1/i.test(r[iPosted]||"") : false,
+      source:"import"
+    });
+    added++;
+  });
+  state.txns.sort((a,b)=>a.date<b.date?1:-1);
+  migrateCategories();
+  saveState(); render();
+  toastMsg(`Imported ${added} transaction${added!==1?"s":""}${skipped?` · ${skipped} row(s) skipped`:""}`);
+}
+function normalizeDate(s){
+  if(!s) return null;
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/); // dd/mm/yyyy
+  if(m){
+    let [,d,mo,y] = m;
+    if(y.length===2) y = "20"+y;
+    return `${y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`;
+  }
+  const dt = new Date(s);
+  return isNaN(dt) ? null : dt.toISOString().slice(0,10);
+}
+
+// ================= init =================
+loadState();
+render();
+</script>
+</body>
+</html>
